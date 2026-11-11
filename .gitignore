@@ -1,0 +1,16 @@
+# Keil/uVision build output and per-user settings
+_build/
+*.uvoptx
+*.uvguix.*
+*.uvprojx.*.bak
+*.bak
+*.log
+JLinkLog.txt
+JLinkSettings.ini
+.vscode/
+
+# Common local files
+*.pyc
+__pycache__/
+.DS_Store
+Thumbs.db

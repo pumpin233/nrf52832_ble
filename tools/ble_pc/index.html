@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>开发板蓝牙收发</title>
+<style>
+body{font:16px system-ui;max-width:760px;margin:40px auto;padding:0 20px;background:#f4f6fa;color:#182331}
+button{padding:10px 18px;margin:8px 8px 8px 0;cursor:pointer}textarea{box-sizing:border-box;width:100%;padding:12px;font:15px monospace;border:1px solid #acb8ca;border-radius:6px}#status{color:#345e8b}#log{white-space:pre-wrap;overflow-wrap:anywhere;font:13px monospace;max-height:180px;overflow:auto}label{display:block;margin:12px 0}
+</style>
+<h1>开发板蓝牙收发</h1>
+<p>连接 BLE_PC_Link，发送后开发板会原样回传。使用电脑自身蓝牙，无需选择串口。</p>
+<p id="status">尚未连接</p>
+<button id="connect" onclick="act('connect')">连接开发板</button>
+<button onclick="act('disconnect')">断开连接</button>
+<label for="input">发送内容</label>
+<textarea id="input" rows="3" placeholder="输入 hello 或中文，无需添加回车"></textarea>
+<label><input type="checkbox" id="hex"> HEX发送（例如：01 02 FF）</label>
+<button id="send" onclick="act('send')" disabled>发送</button>
+<label for="received">收到的文本（各包连续拼接）</label>
+<textarea id="received" rows="7" readonly></textarea>
+<button onclick="document.getElementById('received').value='';document.getElementById('log').textContent=''">清空显示</button>
+<p>收发记录（HEX可检查二进制数据）</p><div id="log"></div>
+<script>
+const token='__TOKEN__';
+const $=id=>document.getElementById(id);
+let busy=false;
+function log(s){$('log').textContent=($('log').textContent+s+'\n').slice(-20000);$('log').scrollTop=$('log').scrollHeight;}
+async function act(command){
+ if(busy)return;
+ busy=true;$('send').disabled=true;$('connect').disabled=true;
+ if(command==='connect')$('status').textContent='正在扫描并连接，请稍候…';
+ try{
+  const r=await fetch('/action',{method:'POST',headers:{'Content-Type':'application/json','X-Token':token},body:JSON.stringify({command,text:$('input').value,hex:$('hex').checked})});
+  const data=await r.json();log(data.error?'错误：'+data.error:data.message);
+ }catch(e){log('连接程序异常：'+e.message);}finally{busy=false;$('connect').disabled=false;}
+}
+async function poll(){
+ try{
+  const r=await fetch('/state',{headers:{'X-Token':token}});const s=await r.json();
+  if(!busy)$('status').textContent=s.ready?'已连接 BLE_PC_Link':'尚未连接';
+  $('send').disabled=busy||!s.ready;
+  for(const e of s.events){if(e.kind==='rx'){$('received').value=($('received').value+e.text).slice(-20000);log('收到 HEX：'+e.hex);}else log(e.text);}
+ }catch(e){$('status').textContent='本地程序已退出，请重新启动';$('send').disabled=true;}
+ setTimeout(poll,300);
+}
+poll();
+</script>
+</html>
